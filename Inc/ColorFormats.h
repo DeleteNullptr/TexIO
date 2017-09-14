@@ -5,14 +5,6 @@
 #pragma pack(push, 1)
 namespace TexIO
 {
-	struct DataS
-	{
-		byte a;
-		byte b;
-		byte c;
-		byte d;
-	};
-
 	// Base classes
 	template <typename Tr>
 	class CF_BASE1
@@ -73,14 +65,6 @@ namespace TexIO
 	using CF_R16G16B16_UINT = CF_BASE3<ushort,ushort,ushort>;
 	using CF_R8G8B8_UINT = CF_BASE3<byte,byte,byte>;
 	using CF_R8G8B8A8_UINT = CF_BASE4<byte,byte,byte,byte>;
-
-	/*
-	void PackingDummyFunc()
-	{
-		CF_R8G8B8A8_UINT a;
-		CF_R8G8B8_UINT b;
-	}
-	 */
 
 	enum ColorFormat
 	{

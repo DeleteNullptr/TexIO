@@ -31,6 +31,8 @@ namespace TexIO
 				if(pFile->fail()) return false;
 			}
 
+			desc.MipLevels = 1;
+
 			if (desc.FileFormat == FileType::TGA || ext == "tga")
 			{
 				result = TGA_IO::ReadHeader(*pFile, desc);
@@ -43,6 +45,8 @@ namespace TexIO
 			{
 				//TGA_IO::ReadHeader(filename, keepOpen);
 			}
+
+			desc.Update();
 
 			if(!keepOpen)
 			{
@@ -187,7 +191,6 @@ namespace TexIO
 			}
 			return ext;
 		}
-
 		map<string, fstream> mOpenFiles;
 	};
 }

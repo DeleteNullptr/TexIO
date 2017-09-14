@@ -86,12 +86,12 @@ namespace TexIO
 			switch(tgaInfo.PixelSize)
 			{
 				case PixelDepth::R8G8B8:
-					desc.PixelFormat = ColorFormat::R8G8B8_UINT;
-					desc.PixelSize = sizeof(CF_R8G8B8_UINT);
+					desc.PixelFormat = ColorFormat::R8G8B8A8_UINT;
+					desc.NumChannels = 3;
 					break;
 				case PixelDepth::R8G8B8A8:
 					desc.PixelFormat = ColorFormat::R8G8B8A8_UINT;
-					desc.PixelSize = sizeof(CF_R8G8B8A8_UINT);
+					desc.NumChannels = 4;
 					break;
 				case PixelDepth::R5G5B5A1:
 					return false;
@@ -130,15 +130,17 @@ namespace TexIO
 							byteOffset += 4;
 						}
 				} else {
-					switch(desc.PixelSize)
+					switch(desc.NumChannels)
 					{
 						case 3:
 						{
 							for (; pixelsRead < maxPixelsRead; ++pixelsRead) {
-								stream.read(reinterpret_cast<char *>(rawPixel), desc.PixelSize);
+								stream.read(reinterpret_cast<char *>(rawPixel), 3);
 								pData[byteOffset++] = rawPixel[2];
 								pData[byteOffset++] = rawPixel[1];
 								pData[byteOffset++] = rawPixel[0];
+								// Skip the Alpha byte to pad to 32-bit
+								byteOffset++;
 							}
 							break;
 						}
@@ -157,14 +159,6 @@ namespace TexIO
 						default:
 							break;
 					}
-
-					/*
-					while(pixelsRead < maxPixelsRead) {
-						stream.read(reinterpret_cast<char *>(pData + pixelsRead * desc.PixelSize), desc.PixelSize);
-						pixelsRead ++;
-					}
-					 */
-					//pixelsRead = (uint)(stream.readsome(reinterpret_cast<char *>(pData), maxPixelsRead * desc.PixelSize) / desc.PixelSize);
 				}
 			}
 			return pixelsRead;
@@ -189,7 +183,7 @@ namespace TexIO
 				header.ImageType = ImageType::TrueColor;
 			}
 
-			header.PixelSize = (PixelDepth)(desc.PixelSize * 8);
+			header.PixelSize = (PixelDepth)(desc.NumChannels * 8);
 
 			stream.write(reinterpret_cast<char*>(&header), sizeof(TargaHeader));
 			stream.write(desc.Signature.c_str(), header.IDLength);
@@ -209,7 +203,7 @@ namespace TexIO
 			} else {
 				uint pixelByteOffset {byteOffset};
 
-				switch(desc.PixelSize)
+				switch(desc.NumChannels)
 				{
 					case 3: {
 						for (; pixelsWritten < maxPixelsWritten; ++pixelsWritten)
@@ -309,8 +303,8 @@ namespace TexIO
 			// Write RLE packet
 			auto RLE_write = [&]()
 			{
-				switch (desc.PixelFormat) {
-					case ColorFormat::R8_UINT : {
+				switch (desc.NumChannels) {
+					case 1 : {
 						RLE_Packet<(int) PixelDepth::R8 / 8> packet;
 						packet.SetNumPixels(counterEqual);
 						packet.mData[0] = (byte) (pData[pixelOffset]);
@@ -318,17 +312,19 @@ namespace TexIO
 						break;
 					}
 
-					case ColorFormat::R8G8B8_UINT: {
+					case 3: {
 						RLE_Packet<(int) PixelDepth::R8G8B8 / 8> packet;
 						packet.SetNumPixels(counterEqual);
 						packet.mData[0] = (byte) (pData[byteOffset]);
 						packet.mData[1] = (byte) (pData[++byteOffset]);
 						packet.mData[2] = (byte) (pData[++byteOffset]);
+						// Skip Alpha byte to pad to 32-bit
+						++byteOffset;
 						stream.write(reinterpret_cast<char *>(&packet), sizeof(packet));
 						break;
 					}
 
-					case ColorFormat::R8G8B8A8_UINT: {
+					case 4: {
 						RLE_Packet<(int) PixelDepth::R8G8B8A8 / 8> packet;
 						packet.SetNumPixels(counterEqual);
 						packet.mData[0] = (byte) (pData[byteOffset]);
@@ -358,7 +354,7 @@ namespace TexIO
 			};
 
 			auto CompPixels = [&](uint byteOffset, int rhsOffset) {
-				for (auto i = 0; i < pixelSize; ++i)
+				for (auto i = 0; i < desc.NumChannels; ++i)
 				{
 					if (pData[byteOffset + i] != pData[byteOffset + i + rhsOffset])
 					{
@@ -392,8 +388,6 @@ namespace TexIO
 						}
 						break;
 					} else {
-						packageHeaderPos = stream.showpos;
-						//rawPixels.push_back(pData[i]);
 						if (counterNEqual == 128) {
 							Raw_write();
 							counterNEqual = 0;
@@ -434,14 +428,14 @@ namespace TexIO
 				stream.read(reinterpret_cast<char*>(&packet), 1);
 				uint packetPixelCount = (packet & packetPixelMask) + 1u;
 				if (packet & RLE_packetMask) {
-					stream.read(reinterpret_cast<char *>(pixel), desc.PixelSize);
+					stream.read(reinterpret_cast<char *>(pixel), desc.NumChannels);
 					for (auto i = 0; i < packetPixelCount; ++i) {
 						swizzler(pData + byteOffset, pixel);
 						byteOffset += desc.PixelSize;
 					}
 				} else {
 					for (auto i = 0; i < packetPixelCount; ++i) {
-						stream.read(reinterpret_cast<char *>(pixel), desc.PixelSize);
+						stream.read(reinterpret_cast<char *>(pixel), desc.NumChannels);
 						swizzler(pData + byteOffset, pixel);
 						byteOffset += desc.PixelSize;
 					}
